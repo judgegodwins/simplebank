@@ -21,7 +21,7 @@ jobs:
         # Provide the password for postgres
         env:
           POSTGRES_PASSWORD: secretpw
-          POSTGRES_USER: postgres
+          POSTGRES_USER: sb_be
           POSTGRES_DB: simple_bank
         # Set health checks to wait until postgres has started
         options: >-
@@ -41,7 +41,7 @@ jobs:
     - name: Install golang-migrate
       run: |
         curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.2/migrate.linux-amd64.tar.gz | tar xvz
-        sudo mv migrate /usr/bin
+        sudo mv migrate /usr/bin/migrate
         which migrate
 
     - name: Run Migrations

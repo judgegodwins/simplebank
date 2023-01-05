@@ -10,7 +10,22 @@ on:
     branches: [ "main" ]
 
 jobs:
-
+  services:
+    # Label used to access the service container
+    postgres:
+      # Docker Hub image
+      image: postgres:13
+      # Provide the password for postgres
+      env:
+        POSTGRES_PASSWORD: secretpw
+        POSTGRES_USER: postgres
+        POSTGRES_DB: simple_bank
+      # Set health checks to wait until postgres has started
+      options: >-
+        --health-cmd pg_isready
+        --health-interval 10s
+        --health-timeout 5s
+        --health-retries 5
   test:
     runs-on: ubuntu-latest
     steps:
@@ -20,6 +35,9 @@ jobs:
       uses: actions/setup-go@v3
       with:
         go-version: 1.19
+
+    - name: Run Migrations
+      run: make migrateup
 
     - name: Test
       run: make test

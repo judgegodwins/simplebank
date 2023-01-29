@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,7 +10,7 @@ import (
 
 type createAccountRequest struct {
 	Owner    string `json:"owner" binding:"required"`
-	Currency string `json:"currency" binding:"required,oneof=USD EUR"`
+	Currency string `json:"currency" binding:"required,oneof=USD EUR CAD"`
 }
 
 func (server *Server) createAccount(ctx *gin.Context) {
@@ -34,7 +33,7 @@ func (server *Server) createAccount(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, account)
+	ctx.JSON(http.StatusCreated, account)
 }
 
 type getAccountRequest struct {
@@ -48,7 +47,6 @@ func (server *Server) getAccount(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Println(req)
 	account, err := server.store.GetAccount(ctx, req.ID)
 
 	if err != nil {

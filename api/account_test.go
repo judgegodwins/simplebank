@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -86,12 +85,13 @@ func TestGetAccountAPI(t *testing.T) {
 			defer ctrl.Finish()
 
 			store := mockdb.NewMockStore(ctrl)
+			server := NewServer(store)
 
 			tc.buildStubs(store)
 
 			url := fmt.Sprintf("/accounts/%d", tc.accountID)
 
-			recorder := setupServerAndRecorder(t, store, url, nil)
+			recorder := setupServerAndRecorder(t, server, url, nil)
 
 			tc.checkResponse(t, recorder)
 		})
@@ -203,6 +203,7 @@ func TestListAccounts(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	store := mockdb.NewMockStore(ctrl)
+	server := NewServer(store)
 
 	for i := range testCases {
 		testCase := testCases[i]
@@ -211,7 +212,7 @@ func TestListAccounts(t *testing.T) {
 
 		url := fmt.Sprintf("/accounts?page_id=%d&page_size=%d", testCase.query.pageID, testCase.query.pageSize)
 
-		recorder := setupServerAndRecorder(t, store, url, nil)
+		recorder := setupServerAndRecorder(t, server, url, nil)
 
 		testCase.checkResponse(t, recorder)
 	}
@@ -221,15 +222,15 @@ func TestCreateAccount(t *testing.T) {
 	account := randomAccount()
 
 	testCases := []struct {
-		name string
-		body gin.H
+		name          string
+		body          gin.H
 		buildStubs    func(store *mockdb.MockStore)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
 	}{
 		{
 			name: "OK",
 			body: gin.H{
-				"owner": account.Owner,
+				"owner":    account.Owner,
 				"currency": account.Currency,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
@@ -238,7 +239,7 @@ func TestCreateAccount(t *testing.T) {
 					Currency: account.Currency,
 					Balance:  0,
 				}
-				
+
 				store.EXPECT().
 					CreateAccount(gomock.Any(), gomock.Eq(arg)).
 					Times(1).
@@ -255,7 +256,7 @@ func TestCreateAccount(t *testing.T) {
 				"currency": account.Currency,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
-				
+
 				store.EXPECT().
 					CreateAccount(gomock.Any(), gomock.Any()).
 					Times(0)
@@ -267,7 +268,7 @@ func TestCreateAccount(t *testing.T) {
 		{
 			name: "Connection to db broken",
 			body: gin.H{
-				"owner": account.Owner,
+				"owner":    account.Owner,
 				"currency": account.Currency,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
@@ -290,6 +291,7 @@ func TestCreateAccount(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	store := mockdb.NewMockStore(ctrl)
+	server := NewServer(store)
 
 	for i := range testCases {
 		testCase := testCases[i]
@@ -305,7 +307,7 @@ func TestCreateAccount(t *testing.T) {
 		request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
 		require.NoError(t, err)
 
-		recorder := setupServerAndRecorder(t, store, url, request)
+		recorder := setupServerAndRecorder(t, server, url, request)
 
 		testCase.checkResponse(t, recorder)
 	}
@@ -319,27 +321,3 @@ func randomAccount() db.Account {
 		Currency: util.RandomCurrency(),
 	}
 }
-
-func requireBodyMatches[D db.Account | []db.Account](t *testing.T, body *bytes.Buffer, account D) {
-	data, err := io.ReadAll(body)
-	require.NoError(t, err)
-
-	var getAccount D
-	err = json.Unmarshal(data, &getAccount)
-	require.NoError(t, err)
-	require.Equal(t, account, getAccount)
-}
-
-func setupServerAndRecorder(t *testing.T, store db.Store, url string, request *http.Request) (*httptest.ResponseRecorder) {
-	var err error
-	server := NewServer(store)
-	recorder := httptest.NewRecorder()
-	if request == nil {
-		request, err = http.NewRequest(http.MethodGet, url, nil)
-		require.NoError(t, err)
-	}
-
-	server.router.ServeHTTP(recorder, request)
-
-	return recorder
-} 
